@@ -1,0 +1,9 @@
+{
+  "name": "FoV Simulator (PoC)",
+  "short_name": "FoV Sim",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0c",
+  "theme_color": "#111111",
+  "icons": []
+}
