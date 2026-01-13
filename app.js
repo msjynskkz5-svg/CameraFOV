@@ -55,7 +55,18 @@ function compute(format, focalMm) {
  * To simulate a narrower FoV, scale the video by zoomFactor = targetEq / baseEq.
  * If target is wider than base (zoomFactor < 1), clamp at 1 (can’t “zoom out” by scaling).
  */
+function chooseBestBaseEq(targetEq35, candidates) {
+  // pick the largest candidate that is <= target (minimizes digital zoom)
+  const sorted = [...candidates].sort((a,b) => a - b);
+  let best = sorted[0];
+  for (const c of sorted) {
+    if (c <= targetEq35) best = c;
+  }
+  return best;
+}
+
 function computeZoomFactor(targetEq35, baseEq35) {
+  // zoom in only; if target is wider than base, we can't zoom out -> clamp
   const z = targetEq35 / baseEq35;
   return Math.max(1, z);
 }
@@ -80,25 +91,27 @@ function layoutViewport(aspect) {
 function render() {
   const format = getSelectedFormat();
   const focal = Number(focalInput.value);
-  const baseEq = Number(iphoneEqSelect.value);
+const baseEqCandidates = [13, 26, 52, 77, 120];
+const selectedCandidate = Number(iphoneEqSelect.value);
 
-  if (!Number.isFinite(focal) || focal <= 0) {
-    readout.textContent = "Enter a focal length > 0.";
-    return;
-  }
+// For PoC: treat the dropdown as "max lens available" or just ignore it.
+// Option A (recommended): auto-pick best from all candidates:
+const baseEq = chooseBestBaseEq(res.eq35, baseEqCandidates);
 
-  const res = compute(format, focal);
-  const zoomFactor = computeZoomFactor(res.eq35, baseEq);
+// Option B: use user-selected candidate as the base lens:
+// const baseEq = selectedCandidate;
+
+const zoomFactor = computeZoomFactor(res.eq35, baseEq);
 
   // Apply zoom as a CSS scale (center crop)
   video.style.transform = `translate(-50%, -50%) scale(${zoomFactor.toFixed(4)})`;
 
   layoutViewport(res.aspect);
 
-  const tooWide = (res.eq35 < baseEq);
-  const msg = tooWide
-    ? `Target is wider than assumed iPhone lens (${baseEq}mm eq). Showing widest possible.`
-    : `Simulating ~${zoomFactor.toFixed(2)}× crop (relative to ${baseEq}mm eq).`;
+const tooWide = (res.eq35 < baseEq);
+const msg = tooWide
+  ? `Target is wider than chosen lens (${baseEq}mm eq). Showing widest possible.`
+  : `Using ~${baseEq}mm eq lens + ${zoomFactor.toFixed(2)}× digital zoom.`;
 
   overlayText.textContent = msg;
 
